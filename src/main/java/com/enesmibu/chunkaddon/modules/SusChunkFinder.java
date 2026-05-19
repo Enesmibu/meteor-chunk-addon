@@ -11,6 +11,7 @@ import meteordevelopment.orbit.EventHandler;
 import net.minecraft.block.*;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
+import net.minecraft.world.Heightmap;
 import net.minecraft.world.chunk.WorldChunk;
 
 import java.util.Map;
@@ -91,7 +92,6 @@ public class SusChunkFinder extends Module {
         .build()
     );
 
-    // ChunkPos -> sus score bilgisi
     private final ConcurrentHashMap<ChunkPos, SusInfo> susChunks = new ConcurrentHashMap<>();
 
     public SusChunkFinder() {
@@ -144,13 +144,11 @@ public class SusChunkFinder extends Module {
             }
         }
 
-        // Scan for valuable ores in the chunk (check all block positions - efficient version)
         int startX = chunk.getPos().getStartX();
         int startZ = chunk.getPos().getStartZ();
         int minY = mc.world.getBottomY();
-        int maxY = mc.world.getTopY();
+        int maxY = minY + mc.world.getHeight();
 
-        // Sample scan (every 2nd block for performance)
         for (int x = startX; x < startX + 16; x += 2) {
             for (int z = startZ; z < startZ + 16; z += 2) {
                 for (int y = minY; y < maxY; y++) {
@@ -176,7 +174,7 @@ public class SusChunkFinder extends Module {
             boolean isNew = !susChunks.containsKey(cp);
             susChunks.put(cp, info);
             if (isNew && showChat.get() && mc.player != null) {
-                info("§cSus Chunk §f[" + cp.x + ", " + cp.z + "] §7→ " + reason);
+                info("§cSus Chunk §f[" + cp.x + ", " + cp.z + "] §7-> " + reason);
             }
         } else {
             susChunks.remove(cp);
@@ -185,7 +183,7 @@ public class SusChunkFinder extends Module {
 
     private String buildReason(int chests, int spawners, int ores) {
         StringBuilder sb = new StringBuilder();
-        if (chests >= chestThreshold.get()) sb.append("Sandık:").append(chests).append(" ");
+        if (chests >= chestThreshold.get()) sb.append("Sandik:").append(chests).append(" ");
         if (spawners >= spawnerThreshold.get()) sb.append("Spawner:").append(spawners).append(" ");
         if (ores >= valuableOreThreshold.get()) sb.append("Cevher:").append(ores);
         return sb.toString().trim();
@@ -197,7 +195,7 @@ public class SusChunkFinder extends Module {
         if (mc.world == null) return;
 
         int minY = mc.world.getBottomY();
-        int maxY = mc.world.getTopY();
+        int maxY = minY + mc.world.getHeight();
 
         for (ChunkPos cp : susChunks.keySet()) {
             int x1 = cp.getStartX();
