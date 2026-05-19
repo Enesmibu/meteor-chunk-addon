@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -29,25 +32,52 @@ jobs:
 
       - name: Get version
         id: get_version
-        run: echo "VERSION=$(./gradlew properties -q | grep '^version:' | awk '{print $2}')" >> $GITHUB_OUTPUT
+        run: echo "VERSION=$(grep '^version' build.gradle | head -1 | grep -oP \"(?<=')[^']+\")" >> $GITHUB_OUTPUT
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ steps.get_version.outputs.VERSION }}
-          name: "Meteor Chunk Addon v${{ steps.get_version.outputs.VERSION }}"
-          body: |
-            ## Meteor Chunk Addon v${{ steps.get_version.outputs.VERSION }}
+      - name: Find JAR
+        id: find_jar
+        run: |
+          JAR=$(ls build/libs/*-*.jar | grep -v sources | head -1)
+          echo "JAR_PATH=$JAR" >> $GITHUB_OUTPUT
+          echo "Found JAR: $JAR"
 
-            ### Modüller
-            - **Spawner Finder** — Chunk'larda spawner arar ve ESP ile gösterir
-            - **Sus Chunk Finder** — Anormal sandık/spawner/cevher içeren chunk'ları tespit eder
+      - name: Delete existing release if any
+        run: |
+          TAG="v${{ steps.get_version.outputs.VERSION }}"
+          RELEASE_ID=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG" | grep '"id"' | head -1 | grep -o '[0-9]\+')
+          if [ -n "$RELEASE_ID" ]; then
+            curl -s -X DELETE -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID"
+            git push --delete origin "$TAG" || true
+          fi
 
-            ### Kurulum
-            1. `.jar` dosyasını `mods` klasörüne koy
-            2. Meteor Client 0.5.9 ile Minecraft 1.21.4 Fabric'i başlat
-            3. Meteor menüsünde **Chunk Addon** kategorisini aç
-          files: build/libs/*-${{ steps.get_version.outputs.VERSION }}.jar
-          make_latest: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create Release and Upload JAR
+        run: |
+          TAG="v${{ steps.get_version.outputs.VERSION }}"
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
+          JAR="${{ steps.find_jar.outputs.JAR_PATH }}"
+
+          # Create release
+          RELEASE=$(curl -s -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            "https://api.github.com/repos/${{ github.repository }}/releases" \
+            -d "{
+              \"tag_name\": \"$TAG\",
+              \"name\": \"Meteor Chunk Addon $TAG\",
+              \"body\": \"## Meteor Chunk Addon $TAG\n\n### Moduller\n- **Spawner Finder** — Chunk'larda spawner arar ve ESP ile gosterir\n- **Sus Chunk Finder** — Anormal sandik/spawner/cevher iceren chunk'lari tespit eder\n\n### Kurulum\n1. .jar dosyasini mods klasorune koy\n2. Meteor Client 0.5.9 ile Minecraft 1.21.4 Fabric'i baslat\n3. Meteor menusu -> Chunk Addon kategorisini ac\",
+              \"draft\": false,
+              \"prerelease\": false
+            }")
+          UPLOAD_URL=$(echo "$RELEASE" | grep '"upload_url"' | grep -oP 'https://[^{]+')
+          echo "Upload URL: $UPLOAD_URL"
+
+          # Upload JAR
+          JAR_NAME=$(basename "$JAR")
+          curl -s -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/java-archive" \
+            "${UPLOAD_URL}?name=${JAR_NAME}&label=${JAR_NAME}" \
+            --data-binary "@$JAR"
+          echo "JAR uploaded successfully"
