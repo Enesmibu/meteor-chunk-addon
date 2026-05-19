@@ -17,19 +17,6 @@ repositories {
     maven { url 'https://maven.fabricmc.net/' }
 }
 
-loom {
-    splitEnvironmentSourceSets()
-    mods {
-        meteorChunkAddon {
-            sourceSet sourceSets.main
-        }
-    }
-}
-
-fabricApi {
-    configureDataGeneration()
-}
-
 dependencies {
     minecraft 'com.mojang:minecraft:1.21.4'
     mappings 'net.fabricmc:yarn:1.21.4+build.8:v2'
