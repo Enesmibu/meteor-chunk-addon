@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "meteor-chunk-addon",
+  "version": "${version}",
+  "name": "Meteor Chunk Addon",
+  "description": "Spawner Finder, Sus Chunk Finder for Meteor Client 1.21.4",
+  "authors": ["Enesmibu"],
+  "contact": {
+    "sources": "https://github.com/Enesmibu/meteor-chunk-addon"
+  },
+  "license": "MIT",
+  "icon": "assets/meteor-chunk-addon/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "meteor": [
+      "com.enesmibu.chunkaddon.ChunkAddon"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "minecraft": "~1.21.4",
+    "meteor-client": "*"
+  }
+}
